@@ -1,0 +1,6 @@
+flask
+flask-jwt-extended
+flask_sqlalchemy
+mysqlclient
+bcrypt
+web3==6.4.0
