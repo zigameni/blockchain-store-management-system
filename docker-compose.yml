@@ -66,6 +66,24 @@ services:
     networks:
       - store_network
 
+  customer:
+    build:
+      context: .
+      dockerfile: customer/customer.dockerfile
+    environment:
+      DATABASE_USERNAME: root
+      DATABASE_PASSWORD: root
+      DATABASE_URL: database
+      DATABASE_NAME: store_database
+      PRODUCTION: "True"
+    ports:
+      - "5002:5000"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - store_network
+
 networks:
   auth_network:
     driver: bridge

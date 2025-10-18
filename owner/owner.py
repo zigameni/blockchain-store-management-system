@@ -23,8 +23,8 @@ def update():
 
     # only owner can use this functionality
     claims = get_jwt()
-    if claims.get("role") != "owner":
-        return jsonify(message="Unauthorized."), 403
+    if claims.get("roles") != "owner":
+        return jsonify(msg="Missing Authorization Header"), 401
 
     # Get file from request
     if "file" not in request.files:
@@ -119,8 +119,8 @@ def product_statistics():
 
     #verify user is owner
     claims = get_jwt()
-    if claims.get("role") != "owner":
-        return jsonify(message="Unauthorized."), 403
+    if claims.get("roles") != "owner":
+        return jsonify(msg="Missing Authorization Header"), 401
 
     # Get sold and waiting queantities
     from sqlalchemy import func
@@ -180,7 +180,7 @@ def category_statistics():
     # verify user is owner
     claims = get_jwt()
     if claims.get("role") != "owner":
-        return jsonify(message="Unauthorized."), 403
+        return jsonify(msg="Missing Authorization Header"), 401
 
     from sqlalchemy import func
     from models import OrderProduct, Order

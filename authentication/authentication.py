@@ -114,7 +114,7 @@ def login():
     additional_claims = {
         "forename": user.forename,
         "surname": user.surname,
-        "role": user.role
+        "roles": user.role
     }
 
     access_token = create_access_token(
