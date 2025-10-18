@@ -1,7 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, UTC
+from datetime import datetime
 
-db = SQLAlchemy()
+database = SQLAlchemy()
 
 # -- USERS table, for Customer, Courier, Owner
 # CREATE TABLE users (
@@ -12,17 +12,17 @@ db = SQLAlchemy()
 #     surname VARCHAR(256) NOT NULL ,
 #     role ENUM('customer', 'courier', 'owner') NOT NULL
 # );
-class User(db.Model):
+class User(database.Model):
     __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(256), nullable=False, unique=True)
-    password = db.Column(db.String(256), nullable=False)
-    forename = db.Column(db.String(256), nullable=False)
-    surname = db.Column(db.String(256), nullable=False)
-    role = db.COlumn(db.Enum('customer', 'courier', 'owner'), nullable=False)
+    id = database.Column(database.Integer, primary_key=True)
+    email = database.Column(database.String(256), nullable=False, unique=True)
+    password = database.Column(database.String(256), nullable=False)
+    forename = database.Column(database.String(256), nullable=False)
+    surname = database.Column(database.String(256), nullable=False)
+    role = database.Column(database.Enum('customer', 'courier', 'owner'), nullable=False)
 
     # Relationship
-    orders = db.relationship('Order', back_populates='customer', lazy=True)
+    orders = database.relationship('Order', back_populates='customer', lazy=True)
 
     def __repr__(self):
         return f"<User {self.email} ({self.role})>"
@@ -33,16 +33,16 @@ class User(db.Model):
 #     name VARCHAR(256) NOT NULL UNIQUE,
 #     price DECIMAL(10, 2) NOT NULL
 # );
-class Product(db.Model):
+class Product(database.Model):
     __tablename__ = 'products'
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(256), nullable=False, unique=True)
-    price = db.Column(db.Numeric(10, 2), nullable=False)
+    id = database.Column(database.Integer, primary_key=True)
+    name = database.Column(database.String(256), nullable=False, unique=True)
+    price = database.Column(database.Numeric(10, 2), nullable=False)
 
     # Relationships
-    categories = db.relationship("Category", secondary="product_categories", back_populates="products")
-    order_products = db.relationship("OrderProduct", back_populates="product")
+    categories = database.relationship("Category", secondary="product_categories", back_populates="products")
+    order_products = database.relationship("OrderProduct", back_populates="product")
 
     def __repr__(self):
         return f"<Product {self.name} - {self.price}>"
@@ -54,14 +54,14 @@ class Product(db.Model):
 #     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 #     name VARCHAR(256) NOT NULL UNIQUE
 # );
-class Category(db.Model):
+class Category(database.Model):
     __tablename__ = "categories"
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(256), nullable=False, unique=True)
+    id = database.Column(database.Integer, primary_key=True)
+    name = database.Column(database.String(256), nullable=False, unique=True)
 
     # Relationships
-    products = db.relationship("Product", secondary="product_categories", back_populates="categories")
+    products = database.relationship("Product", secondary="product_categories", back_populates="categories")
 
     def __repr__(self):
         return f"<Category {self.name}>"
@@ -78,11 +78,11 @@ class Category(db.Model):
 # );
 #
 
-class ProductCategory(db.Model):
+class ProductCategory(database.Model):
     __tablename__ = "product_categories"
-    id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
+    id = database.Column(database.Integer, primary_key=True)
+    product_id = database.Column(database.Integer, database.ForeignKey('products.id'), nullable=False)
+    category_id = database.Column(database.Integer, database.ForeignKey('categories.id'), nullable=False)
 
 
 # CREATE TABLE orders (
@@ -96,19 +96,19 @@ class ProductCategory(db.Model):
 #     FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
 # );
 
-class Order(db.Model):
+class Order(database.Model):
     __tablename__ = "orders"
-    id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    price = db.Column(db.Numeric(10, 2), nullable=False)
-    status = db.Column(db.Enum('CREATED', 'PENDING', 'COMPLETE'), nullable=False, default='CREATED')
-    timestamp = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(UTC))
-    contract_address = db.Column(db.String(64), nullable=True)
-    customer_address = db.Column(db.String(64), nullable=True)
+    id = database.Column(database.Integer, primary_key=True)
+    customer_id = database.Column(database.Integer, database.ForeignKey('users.id'), nullable=False)
+    price = database.Column(database.Numeric(10, 2), nullable=False)
+    status = database.Column(database.Enum('CREATED', 'PENDING', 'COMPLETE'), nullable=False, default='CREATED')
+    timestamp = database.Column(database.DateTime, nullable=False, default=datetime.utcnow)
+    contract_address = database.Column(database.String(64), nullable=True)
+    customer_address = database.Column(database.String(64), nullable=True)
 
     # Relationships
-    customer = db.relationship("User", back_populates="orders")
-    order_products = db.relationship("OrderProduct", back_populates="order")
+    customer = database.relationship("User", back_populates="orders")
+    order_products = database.relationship("OrderProduct", back_populates="order")
 
     def __repr__(self):
         return f"<Order {self.id} - {self.status} - ${self.price}>"
@@ -125,17 +125,17 @@ class Order(db.Model):
 #     FOREIGN KEY (product_id) REFERENCES  products(id) ON DELETE  CASCADE
 # );
 
-class OrderProduct(db.Model):
+class OrderProduct(database.Model):
     __tablename__ = "order_products"
 
-    id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey("orders.id"), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
+    id = database.Column(database.Integer, primary_key=True)
+    order_id = database.Column(database.Integer, database.ForeignKey("orders.id"), nullable=False)
+    product_id = database.Column(database.Integer, database.ForeignKey("products.id"), nullable=False)
+    quantity = database.Column(database.Integer, nullable=False)
 
     # Relationships
-    order = db.relationship("Order", back_populates="order_products")
-    product = db.relationship("Product", back_populates="order_products")
+    order = database.relationship("Order", back_populates="order_products")
+    product = database.relationship("Product", back_populates="order_products")
 
     def __repr__(self):
         return f"<OrderProduct order={self.order_id} product={self.product_id} qty={self.quantity}>"

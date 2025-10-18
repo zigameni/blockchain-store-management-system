@@ -16,6 +16,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - auth_network
 
   adminer:
     image: adminer
@@ -23,6 +25,30 @@ services:
     - "8080:8080"
     depends_on:
     - database
+    networks:
+    - auth_network
+
+  authentication:
+    build:
+      context: .
+      dockerfile: authentication/authentication.dockerfile
+    environment:
+      DATABASE_USERNAME: root
+      DATABASE_PASSWORD: root
+      DATABASE_URL: database
+      DATABASE_NAME: store_database
+      PRODUCTION: "True"
+    ports:
+      - "5000:5000"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - auth_network
+
+networks:
+  auth_network:
+    driver: bridge
 
 volumes:
   db_data:
