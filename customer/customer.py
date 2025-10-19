@@ -171,18 +171,55 @@ def create_order():
 
 
 
+@application.route("/status", methods=["GET"])
+@jwt_required()
+def status():
+    """Get all orders for authenticated customers"""
 
+    claims = get_jwt()
+    if claims.get("roles") != "customer":
+        return jsonify(msg="Missing Authorization Header"), 401
 
+    customer_email = get_jwt_identity()
 
-            # # Step 5: Create order
-        # new_order = Order(
-        #     customer_id=customer.id,
-        #     price=total_price,
-        #     status="CREATED",
-        #     timestamp=datetime.utcnow()
-        # )
+    customer = User.query.filter(User.email == customer_email).first()
 
-    return None
+    # Get all orders for this customer
+    orders = Order.query.filter(
+        Order.customer_id == customer.id
+    ).order_by(Order.timestamp.asc()).all()
+
+    # build response
+    orders_list = []
+
+    for order in orders:
+        products_list = []
+
+        for order_product in order.order_products:
+            product = order_product.product
+
+            product_dict = {
+                "categories": [cat.name for cat in product.categories],
+                "name": product.name,
+                "price": float(product.price),
+                "quantity": order_product.quantity
+            }
+
+            products_list.append(product_dict)
+
+        # Timestamp format
+        timestamp_str = order.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        order_dict = {
+            "products": products_list,
+            "price": float(order.price),
+            "status": order.status,
+            "timestamp": timestamp_str
+        }
+        orders_list.append(order_dict)
+
+    return jsonify(orders=orders_list), 200
+
 
 if __name__ == "__main__":
     PORT = os.environ.get("PORT", "5000")
