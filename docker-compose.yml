@@ -30,6 +30,13 @@ services:
     - auth_network
     - store_network
 
+  ganache:
+    image: trufflesuite/ganache-cli
+    ports:
+      - "8545:8545"
+    networks:
+      - store_network
+
   authentication:
     build:
       context: .
@@ -63,6 +70,8 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      ganache:
+        condition: service_started
     networks:
       - store_network
 
@@ -81,6 +90,8 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      ganache:
+        condition: service_started
     networks:
       - store_network
 
@@ -99,6 +110,8 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      ganache:
+        condition: service_started
     networks:
       - store_network
 
