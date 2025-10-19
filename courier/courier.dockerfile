@@ -5,6 +5,7 @@ COPY configuration.py /configuration.py
 COPY models.py /models.py
 COPY utilities.py /utilities.py
 COPY requirements.txt /requirements.txt
+COPY owner_account.json /owner_account.json
 COPY courier/courier.py /courier.py
 
 # Install dependencies
