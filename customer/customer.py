@@ -221,6 +221,53 @@ def status():
     return jsonify(orders=orders_list), 200
 
 
+
+@application.route("/delivered", methods=["POST"])
+@jwt_required()
+def confirm_delivery():
+    """Confirm that order has been delivered"""
+
+    claims = get_jwt()
+    if claims.get("roles") != "customer":
+        return jsonify(msg="Missing Authorization Header"), 401
+
+    # Get request data
+    data = request.json if request.json else {}
+
+    # Step 1: Validate order id presence
+    if "id" not in data:
+        return jsonify(message="Missing order id."), 400
+
+    order_id = data["id"]
+
+    # Step 2: Validate order id format
+    if not isinstance(order_id, int) or order_id <= 0:
+        return jsonify(message="Invalid order id."), 400
+
+    # Step 3: Fetch order
+    order = Order.query.filter(Order.id == order_id).first()
+
+    # Step 4: Validate order exists
+    if not order:
+        return jsonify(message="Invalid order id."), 400
+
+    if order.status == "CREATED":
+        return jsonify(message="Delivery not complete."), 400
+
+    # Step 5: Validate order status is PENDING
+    if order.status != "PENDING":
+        return jsonify(message="Invalid order id."), 400
+
+        # Step 5: Validate order status is PENDING
+
+    # Step 6: Update status to COMPLETE
+    order.status = "COMPLETE"
+
+    # Step 7: Commit changes
+    database.session.commit()
+
+    return "", 200
+
 if __name__ == "__main__":
     PORT = os.environ.get("PORT", "5000")
     HOST = "0.0.0.0" if "PRODUCTION" in os.environ else "localhost"

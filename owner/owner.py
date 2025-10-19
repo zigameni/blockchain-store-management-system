@@ -179,7 +179,7 @@ def category_statistics():
 
     # verify user is owner
     claims = get_jwt()
-    if claims.get("role") != "owner":
+    if claims.get("roles") != "owner":
         return jsonify(msg="Missing Authorization Header"), 401
 
     from sqlalchemy import func
