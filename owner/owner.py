@@ -10,8 +10,8 @@ application = Flask(__name__)
 application.config.from_object(Configuration)
 
 # Jwt configuration
-application.config["JWT_SECRET_KEY"] = "super-secret-key"
-application.config["JWT_ACCESS_TOKEN_EXPIRES"] = 3600
+# application.config["JWT_SECRET_KEY"] = "JWT_SECRET_DEV_KEY"
+# application.config["JWT_ACCESS_TOKEN_EXPIRES"] = 3600
 
 jwt = JWTManager(application)
 database.init_app(application)
@@ -190,7 +190,7 @@ def category_statistics():
         Category.name,
         func.sum(OrderProduct.quantity).label("delivered_count")
     ).join(
-        ProductCategory, Category.id == ProductCategory.product_id
+        ProductCategory, Category.id == ProductCategory.category_id
     ).join(
         Product,ProductCategory.product_id == Product.id
     ).join(

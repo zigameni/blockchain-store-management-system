@@ -30,7 +30,7 @@ services:
     - auth_network
     - store_network
 
-  ganache:
+  ganache-cli:
     image: trufflesuite/ganache-cli
     ports:
       - "8545:8545"
@@ -47,6 +47,7 @@ services:
       DATABASE_URL: database
       DATABASE_NAME: store_database
       PRODUCTION: "True"
+      JWT_SECRET_KEY: JWT_SECRET_DEV_KEY
     ports:
       - "5000:5000"
     depends_on:
@@ -64,13 +65,15 @@ services:
       DATABASE_PASSWORD: root
       DATABASE_URL: database
       DATABASE_NAME: store_database
+      BLOCKCHAIN_URL: http://ganache-cli:8545
+      JWT_SECRET_KEY: JWT_SECRET_DEV_KEY
       PRODUCTION: "True"
     ports:
       - "5001:5000"
     depends_on:
       database:
         condition: service_healthy
-      ganache:
+      ganache-cli:
         condition: service_started
     networks:
       - store_network
@@ -84,13 +87,15 @@ services:
       DATABASE_PASSWORD: root
       DATABASE_URL: database
       DATABASE_NAME: store_database
+      BLOCKCHAIN_URL: http://ganache-cli:8545
+      JWT_SECRET_KEY: JWT_SECRET_DEV_KEY
       PRODUCTION: "True"
     ports:
       - "5002:5000"
     depends_on:
       database:
         condition: service_healthy
-      ganache:
+      ganache-cli:
         condition: service_started
     networks:
       - store_network
@@ -104,13 +109,15 @@ services:
       DATABASE_PASSWORD: root
       DATABASE_URL: database
       DATABASE_NAME: store_database
+      BLOCKCHAIN_URL: http://ganache-cli:8545
+      JWT_SECRET_KEY: JWT_SECRET_DEV_KEY
       PRODUCTION: "True"
     ports:
       - "5003:5000"
     depends_on:
       database:
         condition: service_healthy
-      ganache:
+      ganache-cli:
         condition: service_started
     networks:
       - store_network

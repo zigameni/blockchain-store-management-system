@@ -60,7 +60,7 @@ CREATE TABLE order_products (
 -- Password hash for 'evenmoremoney'
 INSERT INTO users (email, password, forename, surname, role) VALUES (
                                                                      'onlymoney@gmail.com',
-                                                                     '$2b$12$wZcbhs75LSsHp3asVGv0veSXZecNx4FXjdPxfC7TC1ZNlu8BvB4dC',
+                                                                     '$2b$12$iYHdS62w/ooAzcZR4gofyenb9qP9SMcLvs6abJmJ93X/yWi5/Ej4K',
                                                                      'Scrooge',
                                                                      'McDuck',
                                                                      'owner'

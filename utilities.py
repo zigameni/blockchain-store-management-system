@@ -26,11 +26,12 @@ def get_web3():
     return Web3(HTTPProvider(BLOCKCHAIN_URL))
 
 def send_transaction(transaction, private_key):
-    """sign, send transaction via blockchain"""
+    """Sign and send transaction via blockchain"""
     web3 = get_web3()
-    signed_transaction = web3.eth.account.signTransaction(transaction, private_key)
-    transaction_hash = web3.eth.send_raw_transaction(signed_transaction.rawTransaction)
-    receipt = web3.eth.wait_for_transaction_receipt(transaction_hash);
+    signed_transaction = web3.eth.account.sign_transaction(transaction, private_key)
+    raw_tx = getattr(signed_transaction, 'rawTransaction', None) or signed_transaction.raw_transaction
+    transaction_hash = web3.eth.send_raw_transaction(raw_tx)
+    receipt = web3.eth.wait_for_transaction_receipt(transaction_hash)
     return receipt
 
 def read_file(path):

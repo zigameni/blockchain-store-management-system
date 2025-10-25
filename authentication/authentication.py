@@ -10,8 +10,8 @@ application = Flask(__name__)
 application.config.from_object(Configuration)
 
 # JWT Configuration
-application.config["JWT_SECRET_KEY"] = "super-secret-key"
-application.config["JWT_ACCESS_TOKEN_EXPIRES"] = 3600  # 1 hour
+# application.config["JWT_SECRET_KEY"] = "JWT_SECRET_DEV_KEY"
+# application.config["JWT_ACCESS_TOKEN_EXPIRES"] = 3600  # 1 hour
 
 jwt = JWTManager(application)
 database.init_app(application)
