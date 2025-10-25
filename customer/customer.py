@@ -33,6 +33,8 @@ def search():
     # Get query parameters
     name_filter = request.args.get("name", "");
     category_filter = request.args.get("category", "");
+    # min_price = request.args.get("minPrice", None)
+    # max_price = request.args.get("maxPrice", None)
 
     # start with base query
     products_query = Product.query
@@ -55,6 +57,21 @@ def search():
             Category.name.like(f"%{category_filter}%")
         )
 
+    # # Apply price filters
+    # if min_price is not None:
+    #     try:
+    #         min_price_value = float(min_price)
+    #         products_query = products_query.filter(Product.price >= min_price_value)
+    #     except (ValueError, TypeError):
+    #         pass  # Ignore invalid min_price values
+    #
+    # if max_price is not None:
+    #     try:
+    #         max_price_value = float(max_price)
+    #         products_query = products_query.filter(Product.price <= max_price_value)
+    #     except (ValueError, TypeError):
+    #         pass  # Ignore invalid max_price values
+
     # if name filter is applied only show categories of matching products
     if name_filter:
         categories_query = categories_query.join(
@@ -62,6 +79,24 @@ def search():
         ).filter(
             Product.name.like(f"%{name_filter}%")
         )
+
+    # # Apply price filters to categories query as well
+    # if min_price is not None or max_price is not None:
+    #     categories_query = categories_query.join(Category.products)
+    #
+    #     if min_price is not None:
+    #         try:
+    #             min_price_value = float(min_price)
+    #             categories_query = categories_query.filter(Product.price >= min_price_value)
+    #         except (ValueError, TypeError):
+    #             pass
+    #
+    #     if max_price is not None:
+    #         try:
+    #             max_price_value = float(max_price)
+    #             categories_query = categories_query.filter(Product.price <= max_price_value)
+    #         except (ValueError, TypeError):
+    #             pass
 
     # Get unique categories
     categories = categories_query.distinct().all()
@@ -234,10 +269,11 @@ def create_order():
     # return order id
     return jsonify(id=new_order.id), 200
 
+
 @application.route("/generate_invoice", methods=["POST"])
 @jwt_required()
 def generate_invoice():
-    """Generate payment invoice for an order"""
+    """Generate payment invoice for an order (supports installment payments)"""
     claims = get_jwt()
     if claims.get("roles") != "customer":
         return jsonify(msg="Missing Authorization Header"), 401
@@ -279,32 +315,45 @@ def generate_invoice():
     web3 = get_web3()
     customer_address = web3.to_checksum_address(customer_address_from_request)
 
-    # If order was created without blockchain (no customer_address stored),
-    # update it now with the provided address
     if not order.customer_address:
         order.customer_address = customer_address
         database.session.commit()
 
-    # Check if payment already completed
+    # Get optional amount parameter from query string
+    amount_param = request.args.get("amount", None)
+
     try:
         abi = json.loads(read_file("./blockchain/output/OrderPayment.abi"))
         contract = web3.eth.contract(address=order.contract_address, abi=abi)
 
+        # Check if already fully paid
         is_paid = contract.functions.isPaid().call()
         if is_paid:
             return jsonify(message="Transfer already complete."), 400
 
-    except Exception as e:
-        return jsonify(message=f"Error checking payment status: {str(e)}"), 400
-
-    # Generate payment transaction
-    try:
+        # Get current payment status
         order_price_wei = int(order.price * 100)
+        amount_paid = contract.functions.getAmountPaid().call()
+        remaining_amount = order_price_wei - amount_paid
 
-        # Build transaction with the customer address
+        # Determine payment amount
+        if amount_param is not None:
+            try:
+                payment_amount = int(amount_param)
+                if payment_amount <= 0:
+                    return jsonify(message="Invalid amount."), 400
+                if payment_amount > remaining_amount:
+                    return jsonify(message="Invalid amount."), 400
+            except ValueError:
+                return jsonify(message="Invalid amount."), 400
+        else:
+            # If no amount specified, pay the full remaining amount
+            payment_amount = remaining_amount
+
+        # Generate payment transaction with the calculated payment_amount
         transaction = contract.functions.pay().build_transaction({
             'from': customer_address,
-            'value': order_price_wei,
+            'value': payment_amount,  # THIS IS THE KEY LINE - use payment_amount not order_price_wei
             'nonce': web3.eth.get_transaction_count(customer_address),
             'gas': 200000,
             'gasPrice': web3.eth.gas_price
@@ -317,95 +366,8 @@ def generate_invoice():
     except Exception as e:
         return jsonify(message=f"Error generating invoice: {str(e)}"), 400
 
-# @application.route("/generate_invoice", methods=["POST"])
-# @jwt_required()
-# def generate_invoice():
-#     """Generate payment invoice for an order"""
-#     claims = get_jwt()
-#     if claims.get("roles") != "customer":
-#         return jsonify(msg="Missing Authorization Header"), 401
-#
-#     customer_email = get_jwt_identity()
-#     data = request.json if request.json else {}
-#
-#     # Validate order id
-#     if "id" not in data:
-#         return jsonify(message="Missing order id."), 400
-#
-#     order_id = data["id"]
-#     if not isinstance(order_id, int) or order_id <= 0:
-#         return jsonify(message="Invalid order id."), 400
-#
-#     # Fetch order
-#     order = Order.query.filter(Order.id == order_id).first()
-#
-#     if not order:
-#         return jsonify(message="Invalid order id."), 400
-#
-#     # Verify customer owns this order
-#     customer = User.query.filter(User.email == customer_email).first()
-#     if order.customer_id != customer.id:
-#         return jsonify(message="Invalid order id."), 400
-#
-#     # 1. VALIDATE 'address' from request body (to pass Tests 6 and 7)
-#     if "address" not in data:
-#         return jsonify(message="Missing address."), 400
-#
-#     customer_address_from_request = data.get("address")
-#
-#     # Check for empty string specifically
-#     if not customer_address_from_request or customer_address_from_request.strip() == "":
-#         return jsonify(message="Invalid address."), 400
-#
-#     if not is_valid_address(customer_address_from_request):
-#         return jsonify(message="Invalid address."), 400
-#
-#     web3 = get_web3()
-#
-#     # Convert both addresses to checksum format for comparison
-#     customer_address = web3.to_checksum_address(customer_address_from_request)
-#
-#     # Verify that the address from request matches the one stored in the database
-#     if not order.customer_address:
-#         return jsonify(message="Order has no customer address."), 400
-#
-#     customer_address_from_db = web3.to_checksum_address(order.customer_address)
-#
-#     # Security check: ensure the requesting address matches the order's address
-#     if customer_address.lower() != customer_address_from_db.lower():
-#         return jsonify(message="Invalid address."), 400
-#
-#     # Check if payment already completed
-#     try:
-#         abi = json.loads(read_file("./blockchain/output/OrderPayment.abi"))
-#         contract = web3.eth.contract(address=order.contract_address, abi=abi)
-#
-#         is_paid = contract.functions.isPaid().call()
-#         if is_paid:
-#             return jsonify(message="Transfer already complete."), 400
-#
-#     except Exception as e:
-#         return jsonify(message=f"Error checking payment status: {str(e)}"), 400
-#
-#     # Generate payment transaction
-#     try:
-#         order_price_wei = int(order.price * 100)
-#
-#         # Build transaction using the validated address
-#         transaction = contract.functions.pay().build_transaction({
-#             'from': customer_address,
-#             'value': order_price_wei,
-#             'nonce': web3.eth.get_transaction_count(customer_address),
-#             'gas': 200000,
-#             'gasPrice': web3.eth.gas_price
-#         })
-#
-#         invoice = dict(transaction)
-#
-#         return jsonify(invoice=invoice), 200
-#
-#     except Exception as e:
-#         return jsonify(message=f"Error generating invoice: {str(e)}"), 400
+
+
 
 @application.route("/status", methods=["GET"])
 @jwt_required()

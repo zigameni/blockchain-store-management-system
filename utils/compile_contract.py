@@ -12,7 +12,7 @@ set_solc_version('0.8.18')
 
 # Read contract source
 print("Reading contract source...")
-with open('blockchain/contracts/OrderPayment.sol', 'r') as f:
+with open('../blockchain/contracts/OrderPayment.sol', 'r') as f:
     contract_source = f.read()
 
 # Compile contract
@@ -27,13 +27,13 @@ contract_id, contract_interface = compiled_sol.popitem()
 
 # Save ABI
 abi = contract_interface['abi']
-with open('blockchain/output/OrderPayment.abi', 'w') as f:
+with open('../blockchain/output/OrderPayment.abi', 'w') as f:
     json.dump(abi, f, indent=2)
 print("ABI saved to blockchain/output/OrderPayment.abi")
 
 # Save bytecode
 bytecode = contract_interface['bin']
-with open('blockchain/output/OrderPayment.bin', 'w') as f:
+with open('../blockchain/output/OrderPayment.bin', 'w') as f:
     f.write(bytecode)
 print("Bytecode saved to blockchain/output/OrderPayment.bin")
 

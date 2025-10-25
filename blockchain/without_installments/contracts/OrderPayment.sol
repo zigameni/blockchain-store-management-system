@@ -3,10 +3,9 @@ pragma solidity ^0.8.18;
 
 /**
  * @title OrderPayment
- * @dev A smart contract for managing order payments with installment and escrow functionality.
+ * @dev A smart contract for managing order payments with escrow functionality.
  * The contract holds funds until delivery is confirmed, then distributes them
  * between the owner (80%) and courier (20%).
- * Supports partial payments - customers can pay in installments.
  */
 
 contract OrderPayment {
@@ -15,11 +14,11 @@ contract OrderPayment {
     address public customer_address;
 
     uint public order_price;
-    uint public amount_paid;           // Track total amount paid so far
+    bool public paid;
     bool public delivered;
 
     // Events for tracking important state changes on the blockchain
-    event PaymentReceived(address indexed customer, uint amount, uint totalPaid);
+    event PaymentReceived(address indexed customer, uint amount);
     event CourierAssigned(address indexed courier);
     event DeliveryConfirmed(address indexed customer);
     event FundsDistributed(address indexed owner, uint ownerAmount, address indexed courier, uint courierAmount);
@@ -34,26 +33,25 @@ contract OrderPayment {
         courier_address = _courier_address;
         customer_address = _customer_address;
         order_price = _order_price;
-        amount_paid = 0;                   // Start with zero paid
-        delivered = false;                 // Order starts as undelivered
+        paid = false;                          // Order starts as unpaid
+        delivered = false;                     // Order starts as undelivered
     }
 
     /**
-     * @dev Allows the customer to pay for the order (full or partial payment)
+     * @dev Allows the customer to pay for the order
      * The funds are held in escrow by the contract until delivery is confirmed
      * Requirements:
      * - Caller must be the customer
-     * - Payment amount must not exceed remaining balance
-     * - Order must not already be delivered
+     * - Payment amount must exactly match the order price
+     * - Order must not already be paid
      */
     function pay() external payable {
         require(msg.sender == customer_address, "Only customer can pay!");
-        require(!delivered, "Order already delivered!");
-        require(amount_paid + msg.value <= order_price, "Payment exceeds order price!");
-        require(msg.value > 0, "Payment must be greater than zero!");
+        require(msg.value == order_price, "Incorrect payment amount!");
+        require(!paid, "Order already paid!");
 
-        amount_paid += msg.value;          // Add to total paid amount
-        emit PaymentReceived(msg.sender, msg.value, amount_paid);
+        paid = true;                           // Mark order as paid
+        emit PaymentReceived(msg.sender, msg.value);  // Emit event for tracking
     }
 
     /**
@@ -62,15 +60,15 @@ contract OrderPayment {
      * @param _courier_address Address of the courier to assign
      * Requirements:
      * - Caller must be the owner
-     * - Order must be FULLY paid first
+     * - Order must be paid first
      * - Either no courier is assigned yet, or reassigning to the same courier
      */
     function assignCourier(address payable _courier_address) external {
         require(msg.sender == owner_address, "Only owner can assign courier!");
-        require(isPaid(), "Order must be fully paid first!");
+        require(paid, "Order must be paid first!");
         require(courier_address == address(0) || courier_address == _courier_address, "Courier already assigned!");
 
-        courier_address = _courier_address;
+        courier_address = _courier_address;    // Set or update the courier address
         emit CourierAssigned(_courier_address);
     }
 
@@ -80,26 +78,27 @@ contract OrderPayment {
      * The payment is split: 80% to owner, 20% to courier
      * Requirements:
      * - Caller must be the customer
-     * - Order must be fully paid
+     * - Order must be paid
      * - A courier must be assigned
      * - Delivery must not already be confirmed
      */
     function confirmDelivery() external {
         require(msg.sender == customer_address, "Only customer can confirm delivery!");
-        require(isPaid(), "Order must be fully paid!");
+        require(paid, "Order must be paid!");
         require(courier_address != address(0), "Courier must be assigned!");
         require(!delivered, "Order already delivered!");
 
-        delivered = true;
+        delivered = true;                      // Mark order as delivered
 
         // Calculate payment split: 80% to owner, 20% to courier
         uint owner_amount = (order_price * 80) / 100;
-        uint courier_amount = order_price - owner_amount;
+        uint courier_amount = order_price - owner_amount;  // Ensures all funds are distributed
 
         // Transfer funds from contract to respective parties
         owner_address.transfer(owner_amount);
         courier_address.transfer(courier_amount);
 
+        // Emit events for tracking the delivery and fund distribution
         emit DeliveryConfirmed(msg.sender);
         emit FundsDistributed(owner_address, owner_amount, courier_address, courier_amount);
     }
@@ -107,11 +106,11 @@ contract OrderPayment {
     // View functions (read-only, don't modify state, no gas cost when called externally)
 
     /**
-     * @dev Returns whether the order has been FULLY paid
-     * @return bool indicating if amount_paid equals order_price
+     * @dev Returns whether the order has been paid
+     * @return bool indicating payment status
      */
-    function isPaid() public view returns (bool) {
-        return amount_paid >= order_price;
+    function isPaid() external view returns (bool) {
+        return paid;
     }
 
     /**
@@ -124,29 +123,11 @@ contract OrderPayment {
 
     /**
      * @dev Returns the current balance held by the contract
-     * Should equal amount_paid before delivery and 0 after delivery
+     * Should be equal to order_price after payment and 0 after delivery
      * @return uint contract balance in wei
      */
     function getContractBalance() external view returns (uint) {
         return address(this).balance;
     }
 
-    /**
-     * @dev Returns the amount paid so far
-     * @return uint amount paid in wei
-     */
-    function getAmountPaid() external view returns (uint) {
-        return amount_paid;
-    }
-
-    /**
-     * @dev Returns the remaining amount to be paid
-     * @return uint remaining balance in wei
-     */
-    function getRemainingAmount() external view returns (uint) {
-        if (amount_paid >= order_price) {
-            return 0;
-        }
-        return order_price - amount_paid;
-    }
 }
