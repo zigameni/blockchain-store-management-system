@@ -6,6 +6,8 @@ from flask_jwt_extended import JWTManager, jwt_required, get_jwt
 from configuration import Configuration
 from models import database, Product, Category, ProductCategory
 
+from sqlalchemy import func
+from models import OrderProduct, Order
 application = Flask(__name__)
 application.config.from_object(Configuration)
 
@@ -122,9 +124,9 @@ def product_statistics():
     if claims.get("roles") != "owner":
         return jsonify(msg="Missing Authorization Header"), 401
 
-    # Get sold and waiting queantities
-    from sqlalchemy import func
-    from models import OrderProduct, Order
+    # # Get sold and waiting queantities
+    # from sqlalchemy import func
+    # from models import OrderProduct, Order
 
     # Get sold quantities (Complete orders)
     sold_query = database.session.query(
@@ -172,6 +174,7 @@ def product_statistics():
 
     return jsonify(statistics=statistics), 200
 
+
 @application.route("/category_statistics", methods=["GET"])
 @jwt_required()
 def category_statistics():
@@ -185,29 +188,41 @@ def category_statistics():
     from sqlalchemy import func
     from models import OrderProduct, Order
 
-    # query to count delivered products per category
-    category_stats = database.session.query(
-        Category.name,
-        func.sum(OrderProduct.quantity).label("delivered_count")
-    ).join(
-        ProductCategory, Category.id == ProductCategory.category_id
-    ).join(
-        Product,ProductCategory.product_id == Product.id
-    ).join(
-        OrderProduct, Product.id == OrderProduct.product_id
-    ).join(
-        Order, OrderProduct.order_id == Order.id
-    ).filter(
-        Order.status == "COMPLETE"
-    ).group_by(
-        Category.id, Category.name
-    ).order_by(
-        func.sum(OrderProduct.quantity).desc(),
-        Category.name.asc()
-    ).all()
+    # Simple approach: Get all categories, calculate deliveries for each
+    all_categories = Category.query.all()
 
-    # Extract category names
-    statistics = [name for name, count in category_stats]
+    category_data = []
+
+    for category in all_categories:
+        # For each category, count delivered products
+        # A product belongs to a category if it's in product_categories
+        # A product is delivered if it's in an order with status COMPLETE
+
+        delivered = 0
+        for product in category.products:
+            # Sum quantities from COMPLETE orders for this product
+            quantity_sum = database.session.query(
+                func.sum(OrderProduct.quantity)
+            ).join(
+                Order
+            ).filter(
+                OrderProduct.product_id == product.id,
+                Order.status == "COMPLETE"
+            ).scalar()
+
+            if quantity_sum:
+                delivered += int(quantity_sum)
+
+        category_data.append({
+            'name': category.name,
+            'delivered': delivered
+        })
+
+    # Sort by delivered (desc), then by name (asc)
+    category_data.sort(key=lambda x: (-x['delivered'], x['name']))
+
+    # Return just the names
+    statistics = [cat['name'] for cat in category_data]
 
     return jsonify(statistics=statistics), 200
 
